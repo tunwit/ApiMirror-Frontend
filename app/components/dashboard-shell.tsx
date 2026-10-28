@@ -1,50 +1,20 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { authClient } from "../lib/auth";
-import styles from "./dashboard-shell.module.css";
+import Navbar from "./navbar";
+import Sidebar from "./sidebar";
+import { navigationItems, type DashboardUser } from "./navigation";
 
-type DashboardUser = {
-  name: string;
-  username?: string | null;
-  email: string;
-};
-
-function GridIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-export default function DashboardShell({
-  user,
-  children,
-}: {
-  user: DashboardUser;
-  children: ReactNode;
-}) {
-  const pathname = usePathname();
+export default function DashboardShell({ user, children }: { user: DashboardUser; children: ReactNode }) {
   const [navigationOpen, setNavigationOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [error, setError] = useState("");
-  const accountMenu = useRef<HTMLDetailsElement>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
-  const displayName = user.name.trim() || user.username || "Account";
-  const words = displayName.split(/\s+/);
-  const initials = (words.length > 1
-    ? `${words[0]![0]}${words[words.length - 1]![0]}`
-    : displayName.slice(0, 2)
-  ).toUpperCase();
 
   useEffect(() => {
     function closeOnEscape(event: KeyboardEvent) {
-      if (event.key !== "Escape") return;
-      if (accountMenu.current) accountMenu.current.open = false;
-      if (navigationOpen) {
+      if (event.key === "Escape" && navigationOpen) {
         setNavigationOpen(false);
         menuButton.current?.focus();
       }
@@ -72,84 +42,12 @@ export default function DashboardShell({
   }
 
   return (
-    <div className={styles.shell}>
-      <a className={styles.skipLink} href="#dashboard-content">Skip to content</a>
-
-      <header className={styles.topbar}>
-        <div className={styles.topbarStart}>
-          <button
-            ref={menuButton}
-            className={styles.navigationToggle}
-            type="button"
-            aria-label={navigationOpen ? "Close navigation" : "Open navigation"}
-            aria-expanded={navigationOpen}
-            aria-controls="workspace-sidebar"
-            onClick={() => setNavigationOpen(!navigationOpen)}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d={navigationOpen ? "M6 6l12 12M18 6L6 18" : "M4 6h16M4 12h16M4 18h16"} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-            </svg>
-          </button>
-
-          <Link className={styles.brand} href="/dashboard" aria-label="ApiMirror dashboard">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-              <rect x="2" y="3" width="11" height="22" rx="3" fill="currentColor" />
-              <rect x="16" y="3" width="10" height="22" rx="3" stroke="currentColor" strokeWidth="2" />
-            </svg>
-            <span>ApiMirror</span>
-          </Link>
-        </div>
-
-        <div className={styles.account}>
-          <span className={styles.workspaceName}>Personal workspace</span>
-          <details
-            className={styles.accountDetails}
-            ref={accountMenu}
-            onBlur={(event) => {
-              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-                event.currentTarget.open = false;
-              }
-            }}
-          >
-            <summary className={styles.avatar} aria-label={`Account: ${displayName}`} title={displayName}>
-              {initials}
-            </summary>
-            <div className={styles.accountPopover}>
-              <p className={styles.accountName}>{displayName}</p>
-              <p className={styles.accountEmail}>{user.email}</p>
-              <button className={styles.accountSignOut} type="button" disabled={signingOut} onClick={signOut}>
-                {signingOut ? "Signing out…" : "Sign out"}
-              </button>
-            </div>
-          </details>
-        </div>
-      </header>
-
-      {navigationOpen && (
-        <button className={styles.backdrop} type="button" aria-label="Close navigation" onClick={() => setNavigationOpen(false)} />
-      )}
-
-      <aside id="workspace-sidebar" className={`${styles.sidebar} ${navigationOpen ? styles.sidebarOpen : ""}`}>
-        <nav aria-label="Workspace navigation">
-          <p className={styles.navigationLabel}>Workspace</p>
-          <Link
-            href="/dashboard"
-            className={`${styles.navigationLink} ${pathname.startsWith("/dashboard") ? styles.activeLink : ""}`}
-            aria-current={pathname === "/dashboard" ? "page" : undefined}
-            onClick={() => setNavigationOpen(false)}
-          >
-            <GridIcon />
-            <span>All projects</span>
-          </Link>
-        </nav>
-
-        <button className={styles.sidebarSignOut} type="button" disabled={signingOut} onClick={signOut}>
-          {signingOut ? "Signing out…" : "Sign out"}
-        </button>
-      </aside>
-
-      <main id="dashboard-content" className={styles.main} tabIndex={-1}>
-        {error && <p className={styles.error} role="alert">{error}</p>}
+    <div className="grid min-h-svh grid-cols-[204px_minmax(0,1fr)] grid-rows-[64px_minmax(calc(100svh-64px),auto)] bg-white font-[Inter,Arial,sans-serif] text-sm leading-normal text-[#1f1f1f] max-[700px]:grid-cols-[minmax(0,1fr)] [&_*]:box-border [&_button]:font-[inherit] [&_a:focus-visible]:outline-2 [&_a:focus-visible]:outline-offset-3 [&_a:focus-visible]:outline-[#1f1f1f] [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-offset-3 [&_button:focus-visible]:outline-[#1f1f1f] [&_summary:focus-visible]:outline-2 [&_summary:focus-visible]:outline-offset-3 [&_summary:focus-visible]:outline-[#1f1f1f]">
+      <a className="fixed -top-25 left-5 z-100 rounded-md border border-solid border-[#e2e2df] bg-white px-4 py-2.5 text-inherit no-underline focus:top-3" href="#dashboard-content">Skip to content</a>
+      <Navbar user={user} navigationOpen={navigationOpen} onToggleNavigation={() => setNavigationOpen(!navigationOpen)} menuButtonRef={menuButton} signingOut={signingOut} onSignOut={signOut} />
+      <Sidebar items={navigationItems} open={navigationOpen} onClose={() => setNavigationOpen(false)} signingOut={signingOut} onSignOut={signOut} />
+      <main id="dashboard-content" className="col-start-2 row-start-2 min-w-0 p-10 focus:outline-none max-[700px]:col-start-1 max-[700px]:px-5 max-[700px]:py-6" tabIndex={-1}>
+        {error && <p className="m-0 mb-6 text-[#a92d26]">{error}</p>}
         {children}
       </main>
     </div>

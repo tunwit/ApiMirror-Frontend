@@ -11,7 +11,7 @@ export default function SignInPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (session) window.location.replace("/dashboard");
+    if (session) window.location.replace("/projects");
   }, [session]);
 
   async function signIn(event: FormEvent<HTMLFormElement>) {
@@ -42,18 +42,18 @@ export default function SignInPage() {
 
   return (
     <main className={styles.page}>
-      <section className={styles.content} aria-labelledby="signin-heading">
+      <section className={styles.content}>
         <h1 id="signin-heading">
           Sign in to ApiMirror
         </h1>
 
         {checkingSession || session ? (
-          <p role="status">{session ? "Opening your dashboard…" : "Checking your session…"}</p>
+          <p>{session ? "Opening your dashboard…" : "Checking your session…"}</p>
         ) : (
           <>
             <p>Enter your username and password.</p>
-            <form onSubmit={signIn} aria-busy={submitting}>
-              <label htmlFor="username">Username</label>
+            <form onSubmit={signIn}>
+              <label>Username</label>
               <input
                 id="username"
                 name="username"
@@ -65,7 +65,7 @@ export default function SignInPage() {
                 disabled={submitting}
               />
 
-              <label htmlFor="password">Password</label>
+              <label>Password</label>
               <input
                 id="password"
                 name="password"
@@ -86,7 +86,7 @@ export default function SignInPage() {
         )}
 
         {error && (
-          <p className={styles.error} role="alert">
+          <p className={styles.error}>
             {error}
           </p>
         )}

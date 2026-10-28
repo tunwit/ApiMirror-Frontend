@@ -32,7 +32,7 @@ export default function SignUpPage() {
       }
 
       // Better Auth signs the new user in automatically.
-      window.location.replace("/dashboard");
+      window.location.replace("/projects");
     } catch {
       setError("Unable to reach the server. Please try again.");
       setSubmitting(false);
@@ -41,12 +41,12 @@ export default function SignUpPage() {
 
   return (
     <main className={styles.page}>
-      <section className={styles.content} aria-labelledby="signup-heading">
+      <section className={styles.content}>
         <h1 id="signup-heading">Create an account</h1>
         <p>Get started with ApiMirror.</p>
 
-        <form onSubmit={signUp} aria-busy={submitting}>
-          <label htmlFor="name">Name</label>
+        <form onSubmit={signUp}>
+          <label>Name</label>
           <input
             id="name"
             name="name"
@@ -56,7 +56,7 @@ export default function SignUpPage() {
             disabled={submitting}
           />
 
-          <label htmlFor="email">Email</label>
+          <label>Email</label>
           <input
             id="email"
             name="email"
@@ -66,7 +66,7 @@ export default function SignUpPage() {
             disabled={submitting}
           />
 
-          <label htmlFor="username">Username</label>
+          <label>Username</label>
           <input
             id="username"
             name="username"
@@ -82,7 +82,7 @@ export default function SignUpPage() {
             disabled={submitting}
           />
 
-          <label htmlFor="password">Password</label>
+          <label>Password</label>
           <input
             id="password"
             name="password"
@@ -90,7 +90,6 @@ export default function SignUpPage() {
             autoComplete="new-password"
             minLength={8}
             maxLength={128}
-            aria-describedby="password-hint"
             required
             disabled={submitting}
           />
@@ -101,7 +100,7 @@ export default function SignUpPage() {
           </button>
         </form>
 
-        {error && <p className={styles.error} role="alert">{error}</p>}
+        {error && <p className={styles.error}>{error}</p>}
 
         <p className={styles.switchAccount}>
           Already have an account? <Link href="/signin">Sign in</Link>
