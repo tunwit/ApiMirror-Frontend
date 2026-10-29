@@ -1,0 +1,30 @@
+name: apimirror-frontend
+
+services:
+  frontend:
+    image: ${DOCKERHUB_USERNAME:-local}/apimirror-frontend:${IMAGE_TAG:-local}
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?Set NEXT_PUBLIC_API_URL in frontend/.env}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?Set NEXT_PUBLIC_APP_URL in frontend/.env}
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env
+    ports:
+      - "${FRONTEND_HOST_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/signin').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - api-mirror-network
+
+networks:
+  api-mirror-network:
+    name: api-mirror-network
+    external: true

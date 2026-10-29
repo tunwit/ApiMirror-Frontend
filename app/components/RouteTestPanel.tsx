@@ -1,28 +1,60 @@
 "use client";
 
 import { useState } from "react";
+import { useProjectSettings } from "../../feature/project/hook";
 
 type RouteTestPanelProps = {
   method: string;
   path: string;
-  statusCode: string;
-  responseBody: string;
+  projectId: string;
 };
 
 export default function RouteTestPanel({
   method,
   path,
-  statusCode,
-  responseBody,
+  projectId,
 }: RouteTestPanelProps) {
+  const settings = useProjectSettings(projectId);
   const [tab, setTab] = useState<"request" | "curl">("request");
+  const [language, setLanguage] = useState<"node" | "python">("node");
+  const [copying, setCopying] = useState(false);
+  const [copyResult, setCopyResult] = useState<{ code: string; success: boolean } | null>(null);
   const [requestBody, setRequestBody] = useState(
     '{\n  "name": "Alex Morgan",\n  "email": "alex@example.com"\n}',
   );
+  const [pythonBody, setPythonBody] = useState(
+    '{\n  "name": "Alex Morgan",\n  "email": "alex@example.com"\n}',
+  );
   const routePath = path || "/users/:id";
+  const hasBody = method !== "GET" && method !== "HEAD";
+  const requestUrl = `${settings.data?.baseUrl.replace(/\/+$/, "") ?? ""}${routePath.startsWith("/") ? routePath : `/${routePath}`}`;
+  const url = JSON.stringify(requestUrl);
+  const prefix = language === "python"
+    ? `import requests\n\n${hasBody ? "body = (\n" : ""}`
+    : hasBody ? "const body = (\n" : "";
+  const suffix = language === "python"
+    ? [
+        ...(hasBody ? [")", ""] : []),
+        "response = requests.request(",
+        `    ${JSON.stringify(method)}, ${url},`,
+        '    headers={"Authorization": "Bearer <PROJECT_TOKEN>"},',
+        ...(hasBody ? ["    json=body,"] : []),
+        "    timeout=30,", ")",
+      ].join("\n")
+    : [
+        ...(hasBody ? [");", ""] : []),
+        `const response = await fetch(${url}, {`,
+        `  method: ${JSON.stringify(method)},`,
+        "  headers: {",
+        '    Authorization: "Bearer <PROJECT_TOKEN>",',
+        ...(hasBody ? ['    "Content-Type": "application/json",'] : []),
+        "  },",
+        ...(hasBody ? ["  body: JSON.stringify(body),"] : []),
+        "});",
+      ].join("\n");
   const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
   const curl = [
-    `curl -X ${method} ${quote(`<BASE_URL>${routePath}`)}`,
+    `curl -X ${method} ${quote(requestUrl)}`,
     `  -H 'Authorization: Bearer <PROJECT_TOKEN>'`,
     ...(method !== "GET" && method !== "HEAD"
       ? [
@@ -31,6 +63,37 @@ export default function RouteTestPanel({
         ]
       : []),
   ].join(" \\\n");
+  const code = prefix + (hasBody ? `${language === "python" ? pythonBody : requestBody}\n` : "") + suffix;
+  const currentCopyResult = copyResult?.code === code ? copyResult : null;
+
+  async function copyCode() {
+    setCopying(true);
+    setCopyResult(null);
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopyResult({ code, success: true });
+    } catch {
+      setCopyResult({ code, success: false });
+    } finally {
+      setCopying(false);
+    }
+  }
+
+  if (!settings.data) {
+    return (
+      <aside className="min-w-0 self-start rounded-lg bg-[#f7f7f6] p-5">
+        <p role="status" className="m-0 text-xs leading-5 text-[#666663]">
+          {settings.isError ? "Couldn’t load the project’s mock URL." : "Loading request example…"}
+        </p>
+        {settings.isError && (
+          <button type="button" onClick={() => void settings.refetch()} disabled={settings.isFetching}
+            className="mt-3 min-h-10 rounded-md border border-solid border-[#d8d8d8] bg-white px-3 text-xs disabled:opacity-50">
+            {settings.isFetching ? "Retrying…" : "Retry"}
+          </button>
+        )}
+      </aside>
+    );
+  }
 
   return (
     <aside
@@ -61,56 +124,76 @@ export default function RouteTestPanel({
         <div
           id="test-request-panel"
         >
-          <label className="mb-4 block text-xs">
-            Request body
+          <label className="mb-4 flex items-center justify-between gap-3 text-xs">
+            Language
+            <select
+              value={language}
+              onChange={(event) => setLanguage(event.target.value as "node" | "python")}
+              className="min-h-10 rounded-md border border-solid border-[#d8d8d8] bg-white px-3 text-xs focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              <option value="node">Node.js</option>
+              <option value="python">Python</option>
+            </select>
           </label>
+          <p className="mt-0 mb-4 text-xs leading-5 text-[#666663]">
+            Replace &lt;PROJECT_TOKEN&gt; and any :path parameters before running.
+            {language === "python" ? " Install requests with pip install requests." : " Run with Node.js 18+ in a .mjs file."}
+          </p>
           <div className="mb-2 flex items-center justify-between gap-3 text-[11px] text-[#666663]">
             <span className="break-all font-mono">
               {method} {routePath}
             </span>
-            <span>JSON</span>
+            <span>{hasBody ? "Only body is editable" : "Read only"}</span>
           </div>
-          <textarea
-            id="test-request-body"
-            value={requestBody}
-            onChange={(event) => setRequestBody(event.target.value)}
-            rows={6}
-            spellCheck={false}
-            className="w-full resize-y rounded-md border border-[#d8d8d8] bg-[#f1f1f1] p-2 font-mono text-xs leading-6 text-[#1f1f1f]"
-          />
+          <div className="rounded-md bg-[#f1f1f1] p-3 font-mono text-xs leading-6">
+            {prefix && <pre className="m-0 whitespace-pre-wrap wrap-anywhere"><code>{prefix}</code></pre>}
+            {hasBody && (
+              <textarea
+                id="test-request-body"
+                aria-label={language === "python" ? "Python request body" : "Node.js request body"}
+                aria-describedby="body-edit-help"
+                value={language === "python" ? pythonBody : requestBody}
+                onChange={(event) => language === "python" ? setPythonBody(event.target.value) : setRequestBody(event.target.value)}
+                rows={Math.min(12, Math.max(4, (language === "python" ? pythonBody : requestBody).split("\n").length))}
+                spellCheck={false}
+                className="block w-full resize-y rounded border border-solid border-[#d8d8d8] bg-white px-2 py-1 font-mono text-xs leading-6 text-[#1f1f1f] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1f1f1f]"
+              />
+            )}
+            <pre className="m-0 whitespace-pre-wrap wrap-anywhere"><code>{suffix}</code></pre>
+          </div>
+          <p id="body-edit-help" className="mt-2 mb-0 text-[11px] leading-5 text-[#666663]">
+            {hasBody
+              ? language === "python"
+                ? "Edit the Python body above (True, False, None). Each language keeps its own body edits."
+                : "Edit the JavaScript body above (true, false, null). Each language keeps its own body edits."
+              : `${method} requests don’t include a body.`}
+          </p>
           <button
             type="button"
-            disabled
-            className="mt-3 min-h-10 w-full cursor-not-allowed rounded-md border-0 bg-[#1f1f1f] px-3 py-2 text-xs text-white"
+            onClick={copyCode}
+            disabled={copying}
+            className="mt-3 min-h-10 w-full cursor-pointer rounded-md border-0 bg-[#1f1f1f] px-3 py-2 text-xs text-white hover:bg-[#383835] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1f1f1f] disabled:cursor-wait disabled:opacity-50"
           >
-            Send test request
+            {copying ? "Copying…" : currentCopyResult?.success ? "Copied!" : "Copy code"}
           </button>
           <p
             id="test-preview-note"
-            className="mt-2 mb-5 text-[11px] text-[#666663]"
+            role="status"
+            className={`mt-2 mb-5 text-[11px] ${currentCopyResult?.success === false ? "text-[#a92d26]" : "text-[#666663]"}`}
           >
-            Preview only. No request is sent.
+            {currentCopyResult?.success === false
+              ? "Couldn’t copy. Allow clipboard access and try again."
+              : currentCopyResult?.success
+                ? "Code copied to clipboard."
+                : "Copies the full example, including your body edits. No request is sent."}
           </p>
-          <div className="mb-5 flex flex-wrap items-center gap-2 text-[11px]">
-            <span className="rounded bg-[#e9f3ec] px-2 py-1 text-[#286344]">
-              {statusCode || "200"}
-            </span>
-            <span className="text-[#666663]">Configured response</span>
-          </div>
-          <div className="mb-2 flex items-center justify-between text-[11px] text-[#666663]">
-            <span>Response</span>
-            <span>JSON</span>
-          </div>
-          <pre className="m-0 overflow-x-auto whitespace-pre-wrap font-mono text-xs leading-6 wrap-anywhere">
-            {responseBody || "{}"}
-          </pre>
         </div>
       ) : (
         <div
           id="curl-example-panel"
         >
           <p className="mt-0 mb-4 text-xs leading-5 text-[#666663]">
-            Replace the base URL, token, and any path parameters before using
+            Replace the token and any path parameters before using
             this example.
           </p>
           <pre className="m-0 overflow-x-auto whitespace-pre-wrap font-mono text-xs leading-6 wrap-anywhere">

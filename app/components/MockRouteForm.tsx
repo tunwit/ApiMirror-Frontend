@@ -36,6 +36,10 @@ export default function MockRouteForm({ route }: { route?: MockRoute }) {
       : '{\n  "message": "Hello, world!"\n}',
   );
   const [formError, setFormError] = useState("");
+  const [requiredBody, setRequiredBody] = useState(
+    route?.requiredBody.join(", ") ?? "",
+  );
+  const allowsRequestBody = method !== "GET" && method !== "HEAD";
 
   const submitHandler: SubmitEventHandler<HTMLFormElement> = (event) => {
     event.preventDefault();
@@ -48,21 +52,15 @@ export default function MockRouteForm({ route }: { route?: MockRoute }) {
       setFormError("Enter valid JSON in the response body.");
       return;
     }
-    const form = new FormData(event.currentTarget);
     saveRoute.mutate(
       {
         method,
         path: path.trim(),
         statusCode: Number(statusCode),
         responseBody: parsedBody,
-        requiredBody: [
-          ...new Set(
-            String(form.get("requiredBody") ?? "")
-              .split(",")
-              .map((field) => field.trim())
-              .filter(Boolean),
-          ),
-        ],
+        requiredBody: allowsRequestBody
+          ? [...new Set(requiredBody.split(",").map((field) => field.trim()).filter(Boolean))]
+          : [],
       },
       { onSuccess: () => router.push(projectUrl) },
     );
@@ -159,7 +157,7 @@ export default function MockRouteForm({ route }: { route?: MockRoute }) {
               name="statusCode"
               type="number"
               required
-              min={100}
+              min={200}
               max={599}
               value={statusCode}
               onChange={(event) => setStatusCode(event.target.value)}
@@ -190,25 +188,32 @@ export default function MockRouteForm({ route }: { route?: MockRoute }) {
             How to use path parameters
           </button>
 
-          <label
-            className="mt-6 mb-2 block text-[13px]"
-          >
-            Required body fields (optional)
-          </label>
-          <input
-            id="required-body"
-            name="requiredBody"
-            defaultValue={route?.requiredBody.join(", ") ?? ""}
-            placeholder="name, email"
-            className={inputClass}
-          />
-          <p
-            id="required-body-help"
-            className="m-0 mt-2 text-xs text-[#666663]"
-          >
-            Separate field names with commas. A missing required field should
-            return 400 Bad Request.
-          </p>
+          {allowsRequestBody && (
+            <>
+              <label
+                htmlFor="required-body"
+                className="mt-6 mb-2 block text-[13px]"
+              >
+                Required body fields (optional)
+              </label>
+              <input
+                id="required-body"
+                name="requiredBody"
+                value={requiredBody}
+                onChange={(event) => setRequiredBody(event.target.value)}
+                aria-describedby="required-body-help"
+                placeholder="name, email"
+                className={inputClass}
+              />
+              <p
+                id="required-body-help"
+                className="m-0 mt-2 text-xs text-[#666663]"
+              >
+                Separate field names with commas. A missing required field should
+                return 400 Bad Request.
+              </p>
+            </>
+          )}
 
           {(formError || saveRoute.error) && (
             <p className="mt-4 text-sm text-[#a92d26]">
@@ -220,8 +225,7 @@ export default function MockRouteForm({ route }: { route?: MockRoute }) {
           <RouteTestPanel
             method={method}
             path={path}
-            statusCode={statusCode}
-            responseBody={responseBody}
+            projectId={projectId}
           />
         )}
       </div>
